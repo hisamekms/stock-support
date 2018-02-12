@@ -3,19 +3,26 @@ package application
 import java.time.{LocalDate, YearMonth}
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.scaladsl.{Sink, Source}
 import akka.testkit.{ImplicitSender, TestKit}
 import application.StockApplicationServiceProtocol._
 import domain.model.ValueObjects.{Code, StockId}
 import domain.model._
+import domain.model.Stock.Rate
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, FreeSpecLike, Matchers}
 
 import scala.collection.immutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+
 
 class StockApplicationServiceSpec extends TestKit(ActorSystem("test"))
   with ImplicitSender with FreeSpecLike with Matchers with MockFactory with BeforeAndAfterAll {
+
+
+  implicit val materializer = ActorMaterializer()
 
   override protected def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -260,6 +267,80 @@ class StockApplicationServiceSpec extends TestKit(ActorSystem("test"))
       stockService ! ImportQuarterSettlementList(Market.Tokyo)
 
       expectMsg(ImportQuarterSettlementListSuccess(updatedStocks))
+    }
+
+    "get recommended stocks" in {
+
+      val stockAdapter = mock[StockAdapter]
+      val dailyPriceAdapter = mock[DailyPriceAdapter]
+      val stockRepository = mock[StockRepository]
+      val quarterSettlementAdapter = mock[QuarterSettlementAdapter]
+      val stockService = system.actorOf(StockApplicationService.props(stockAdapter, dailyPriceAdapter, quarterSettlementAdapter, stockRepository))
+
+      val date = LocalDate.of(2018, 1, 10)
+
+      val stocks = Seq[Stock](
+        Stock(
+          "TSE-0000",
+          "test0",
+          Market.Tokyo,
+          "0001",
+          Seq(),
+          StockAnalysis(
+            ytd = BigDecimal("1000"),
+            ytdDate = LocalDate.of(2018, 1, 3),
+            quarterSettlementAnalysisList = Seq(
+              new QuarterSettlementAnalysis(
+                YearMonth.of(2018, 3),
+                ordinal = 1,
+                salesYoyRate = Some(BigDecimal("1.06")),
+                operatingProfitYoyRate = Some(BigDecimal("1.14")),
+                ordinaryProfitYoyRate = Some(BigDecimal("1")),
+                profitYoyRate = Some(BigDecimal("1"))
+              ),
+              new QuarterSettlementAnalysis(
+                YearMonth.of(2018, 3),
+                ordinal = 2,
+                salesYoyRate = Some(BigDecimal("1.07")),
+                operatingProfitYoyRate = Some(BigDecimal("1.15")),
+                ordinaryProfitYoyRate = Some(BigDecimal("1")),
+                profitYoyRate = Some(BigDecimal("1"))
+              ),
+              new QuarterSettlementAnalysis(
+                YearMonth.of(2018, 3),
+                ordinal = 3,
+                salesYoyRate = Some(BigDecimal("1.07")),
+                operatingProfitYoyRate = Some(BigDecimal("1.15")),
+                ordinaryProfitYoyRate = Some(BigDecimal("1")),
+                profitYoyRate = Some(BigDecimal("1"))
+              ),
+              new QuarterSettlementAnalysis(
+                YearMonth.of(2018, 3),
+                ordinal = 4,
+                salesYoyRate = Some(BigDecimal("1.07")),
+                operatingProfitYoyRate = Some(BigDecimal("1.15")),
+                ordinaryProfitYoyRate = Some(BigDecimal("1")),
+                profitYoyRate = Some(BigDecimal("1"))
+              )
+            )
+          ),
+          Seq()
+        )
+      ).to[immutable.Iterable]
+
+      val returnedStocks = Seq[Stock](
+        stocks.head
+      )
+
+      (stockRepository.findAsStream(_: Market)(_: ExecutionContext, _: Materializer)).expects(where {
+        (market, _, _) => market == Market.Tokyo
+      }).returning(Source(stocks))
+
+      stockService ! GetRecommendedStocks(Market.Tokyo, LocalDate.of(2018, 1, 10))
+
+      val res = expectMsgClass(classOf[GetRecommendedStocksSuccess])
+
+      Await.result(res.stocks.runWith(Sink.seq), 3.seconds) shouldBe returnedStocks
     }
   }
 }

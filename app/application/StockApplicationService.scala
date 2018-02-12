@@ -113,6 +113,27 @@ class StockApplicationService(stockAdapter: StockAdapter, dailyPriceAdapter: Dai
         case Failure(ex) => originalSender ! ImportQuarterSettlementListFailure(ex)
       }
 
-    case GetYtdStocks(date) =>
+    case GetRecommendedStocks(market, date) => {
+      val stocks = stockRepository.findAsStream(market)
+        .filter(stock => stock.analysis.ytdDate.exists(_.until(date).getDays <= 7))
+        .filter { stock =>
+          val recent3SaList = stock.analysis.quarterSettlementAnalysisList
+            .sortBy(qsa => (qsa.term.atEndOfMonth().toEpochDay, qsa.ordinal))
+            .reverse
+            .take(3)
+
+          println(recent3SaList)
+
+          if (recent3SaList.lengthCompare(3) < 0) {
+            false
+          } else {
+            recent3SaList.forall(qsa => qsa.salesYoyRate.exists(_ >= BigDecimal("1.07"))
+              && qsa.operatingProfitYoyRate.exists(_ >= BigDecimal("1.15")))
+          }
+        }
+
+      sender ! GetRecommendedStocksSuccess(stocks)
+
+    }
   }
 }

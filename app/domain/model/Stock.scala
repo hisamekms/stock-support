@@ -21,6 +21,13 @@ object StockAnalysis {
     Some(ytd),
     Some(ytdDate)
   )
+
+  def apply(ytd: BigDecimal, ytdDate: LocalDate, quarterSettlementAnalysisList: Seq[QuarterSettlementAnalysis]): StockAnalysis = StockAnalysis(
+    Some(ytd),
+    Some(ytdDate),
+    quarterSettlementAnalysisList
+  )
+
 }
 case class StockAnalysis
 (
@@ -165,5 +172,5 @@ trait StockRepository {
 
   def find(market: Market)(implicit ec: ExecutionContext): Future[Seq[Stock]]
 
-  def findAsStream(market: Market)(implicit ec: ExecutionContext, materializer: Materializer): Future[Source[Stock, NotUsed]]
+  def findAsStream(market: Market)(implicit ec: ExecutionContext, materializer: Materializer): Source[Stock, NotUsed]
 }

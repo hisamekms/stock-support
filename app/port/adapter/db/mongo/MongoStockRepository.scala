@@ -29,10 +29,11 @@ class MongoStockRepository extends StockRepository {
 
   override def save(seq: Seq[Stock])(implicit ec: ExecutionContext): Future[Seq[Stock]] = Future.sequence(seq.map(this.save))
 
-  override def findAsStream(market: Market)(implicit ec: ExecutionContext, materializer: Materializer): Future[Source[Stock, NotUsed]] = {
+  override def findAsStream(market: Market)(implicit ec: ExecutionContext, materializer: Materializer): Source[Stock, NotUsed] = {
     import reactivemongo.akkastream.cursorProducer
 
-    stocks.map(_.find(document("market" -> market, "deleted" -> false)).cursor[Stock]().documentSource()
-      .mapMaterializedValue(_ => NotUsed))
+    val f = stocks.map(_.find(document("market" -> market, "deleted" -> false)).cursor[Stock]().documentSource())
+
+    Source.fromFutureSource(f).mapMaterializedValue(_ => NotUsed)
   }
 }

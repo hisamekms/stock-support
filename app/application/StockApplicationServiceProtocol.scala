@@ -39,12 +39,12 @@ object StockApplicationServiceProtocol {
 
   case class ImportQuarterSettlementListFailure(ex: Throwable) extends ImportQuarterSettlementListResponse
 
-  case class GetYtdStocks(date: LocalDate)
+  case class GetRecommendedStocks(market: Market, date: LocalDate)
 
-  sealed trait GetYtdStocksResponse
+  sealed trait GetRecommendedStocksResponse
 
-  case class GetYtdStocksSuccess(stocks: Source[Stock, NotUsed]) extends GetYtdStocksResponse
+  case class GetRecommendedStocksSuccess(stocks: Source[Stock, NotUsed]) extends GetRecommendedStocksResponse
 
-  case class GetYtdStocksFailure(ex: Throwable) extends GetYtdStocksResponse
+  case class GetRecommendedStocksFailure(ex: Throwable) extends GetRecommendedStocksResponse
 
 }
