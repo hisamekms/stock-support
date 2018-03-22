@@ -2,6 +2,7 @@ package port.adapter.db.mongo
 
 import java.time._
 
+import com.typesafe.config.ConfigFactory
 import domain.model._
 import reactivemongo.api.collections.bson.BSONCollection
 import reactivemongo.api.{DefaultDB, MongoConnection, MongoDriver}
@@ -10,7 +11,8 @@ import reactivemongo.bson.{BSONDateTime, BSONDocument, BSONDocumentReader, BSOND
 import scala.concurrent.{ExecutionContext, Future}
 
 object MongoSupport {
-  val mongoUri = "mongodb://localhost:27017/mydb?authMode=scram-sha1"
+  private val config = ConfigFactory.load()
+  val mongoUri = config.getString("mongo.uri")
 
   // Connect to the database: Must be done only once per application
   val driver = MongoDriver()
